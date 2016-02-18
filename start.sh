@@ -1,5 +1,5 @@
 #!/bin/bash
 
-if javac Main.java; then
-    java Main training.txt testing.txt
+if make; then
+    java src.Main training.txt testing.txt
 fi

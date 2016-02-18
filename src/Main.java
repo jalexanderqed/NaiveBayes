@@ -1,8 +1,11 @@
+package src;
+
 import java.net.URI;
 import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.Scanner;
 import java.nio.file.Paths;
-import BayesModel;
+import src.BayesModel;
 
 public class Main {
 
@@ -32,22 +35,33 @@ public class Main {
         training = training.replaceAll(regString, "");
         testing = testing.replaceAll(regString, "");
 
-        // Scanner sc = new Scanner(System.in); // For debugging
-        String[] examples = testing.split("\n");
-        String[][] tokenized = new String[examples.length][0];
+        String[] trainingData = training.split("\n");
+        String[] testingData = testing.split("\n");
+        // String[] trainingData = testing.split("\n");
+        // String[] testingData = training.split("\n");
+
         BayesModel model = new BayesModel();
 
-        for (int i = 0; i < examples.length; i++) {
-            tokenized[i] = tokenize(examples[i]);
-            ArrayList<String> nonEmpty = new ArrayList(tokenized.length);
-            for(int j = 0; j < tokenized.length; j++){
-                if(tokenized[i][j].length() != 0) nonEmpty.add(tokenized[i][j]);
-            }
-            tokenized[i] = nonEmpty.toArray(tokenized[i]);
-            model.addToModel(tokenized[i]);
+        for (int i = 0; i < trainingData.length; i++) {
+            model.addToModel(tokenize(trainingData[i].substring(1)), trainingData[i].charAt(0) == '1');
         }
 
         System.out.println("Finished constructing model.");
+
+        int numCorrect = 0;
+        int numWrong = 0;
+
+        for (int i = 0; i < testingData.length; i++) {
+            boolean res = model.classify(tokenize(testingData[i].substring(1)));
+            char resChar = res ? '1' : '0';
+            if(resChar == testingData[i].charAt(0))
+                numCorrect++;
+            else
+                numWrong++;
+        }
+
+        System.out.println("Correct: " + numCorrect);
+        System.out.println("Wrong: " + numWrong);
 
         if (true) return;
         int count = 0;
@@ -87,14 +101,27 @@ public class Main {
         System.out.println(count);
     }
 
-    public static String[] tokenize(String post) {
-        post = post.toLowerCase().substring(1);
+    public static ArrayList<String> tokenize(String post) {
+        post = post.toLowerCase();
         String[] tokens = post.split("[^\\w\\-']|(\\-\\-)");
+        ArrayList<String> finalTokens = new ArrayList<>(tokens.length);
         for (int i = 0; i < tokens.length; i++) {
-            if (tokens[i].equals("-") || tokens[i].equals("'")) tokens[i] = "";
-            if (tokens[i].length() == 0) continue;
+            if (tokens[i].equals("-") || tokens[i].equals("'")) tokens[i] = new String();
+
+            while(tokens[i].length() > 1 && (tokens[i].charAt(0) < 'a' || tokens[i].charAt(0) > 'z'))
+                tokens[i] = tokens[i].substring(1);
+            while(tokens[i].length() > 1 && (tokens[i].charAt(tokens[i].length() - 1) < 'a' || tokens[i].charAt(tokens[i].length() - 1) > 'z'))
+                tokens[i] = tokens[i].substring(0, tokens[i].length() - 1);
+            if(tokens[i].length() == 1 && (tokens[i].charAt(0) < 'a' || tokens[i].charAt(0) > 'z'))
+                tokens[i] = new String();
+
+            tokens[i] = tokens[i].trim();
+            if (tokens[i].length() != 0){
+                finalTokens.add(tokens[i]);
+            }
         }
-        return tokens;
+
+        return finalTokens;
     }
 
     public static void setDefaults() {
