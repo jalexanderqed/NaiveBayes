@@ -1,13 +1,13 @@
-package src;
-
 import java.net.URI;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Scanner;
 import java.nio.file.Paths;
-import src.BayesModel;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Hashtable;
 
-public class Main {
+public class DecisionTreeClassifier{
 
     static int MAX_ATT_NUM; // 1 to 3
     static double ALPHA; // 0.5 to 2 CONSIDER
@@ -60,8 +60,10 @@ public class Main {
                 numWrong++;
         }
 
+        double percent = numCorrect / (double)(numCorrect + numWrong);
         System.out.println("Correct: " + numCorrect);
         System.out.println("Wrong: " + numWrong);
+        System.out.println("Percentage: " + Math.round(percent * 1000) / 10.0);
 
         if (true) return;
         int count = 0;
@@ -132,5 +134,128 @@ public class Main {
         OCCUR_WEIGHT = 1;
         NORMALIZE_WEIGHTS = true;
         STEM = true;
+    }
+}
+
+class BayesModel {
+    private Hashtable<String, Integer> posFrequencies;
+    private Hashtable<String, Integer> negFrequencies;
+    private int numPosDocs;
+    private int numNegDocs;
+
+    public BayesModel() {
+        posFrequencies = new Hashtable<String, Integer>();
+        negFrequencies = new Hashtable<String, Integer>();
+        numPosDocs = 0;
+    }
+
+    public boolean classify(ArrayList<String> tokens) {
+        double posValue = 0.0;
+        double negValue = 0.0;
+
+        for (int i = 0; i < tokens.size(); i++) {
+            String key = tokens.get(i);
+            if (posFrequencies.containsKey(key) || negFrequencies.containsKey(key)) {
+                posValue += bayesValueFor(key, true);
+                negValue += bayesValueFor(key, false);
+            }
+
+            if (i > 0) {
+                key = tokens.get(i - 1) + " " + tokens.get(i);
+                if (posFrequencies.containsKey(key) || negFrequencies.containsKey(key)) {
+                    posValue += bayesValueFor(key, true);
+                    negValue += bayesValueFor(key, false);
+                }
+            }
+
+            if (i > 1) {
+                key = tokens.get(i - 2) + " " + tokens.get(i - 1) + " " + tokens.get(i);
+                if (posFrequencies.containsKey(key) || negFrequencies.containsKey(key)) {
+                    posValue += bayesValueFor(key, true);
+                    negValue += bayesValueFor(key, false);
+                }
+            }
+        }
+
+        posValue += Math.log((double)numPosDocs / (numNegDocs + numPosDocs));
+        negValue += Math.log((double)numNegDocs / (numNegDocs + numPosDocs));
+
+        return posValue > negValue;
+    }
+
+    public double bayesValueFor(String key, boolean positive) {
+        Hashtable<String, Integer> source;
+        int numDocs;
+
+        if(positive){
+            source = posFrequencies;
+            numDocs = numPosDocs;
+        }
+        else{
+            source = negFrequencies;
+            numDocs = numNegDocs;
+        }
+
+        double prob;
+        Integer freq = source.get(key);
+        if (freq == null) freq = new Integer(0);
+
+        prob = (1 + freq.intValue()) / (double) numDocs;
+
+        return Math.log(prob);
+    }
+
+    public void addToModel(ArrayList<String> tokens, boolean positive) {
+        HashSet<String> added = new HashSet<String>();
+        for (int i = 0; i < tokens.size(); i++) {
+            if (!added.contains(tokens.get(i))) {
+                addOneForKey(tokens.get(i), positive);
+                added.add(tokens.get(i));
+            }
+
+            if (i > 0) {
+                String key = tokens.get(i - 1) + " " + tokens.get(i);
+                if (!added.add(key)) {
+                    addOneForKey(key, positive);
+                    added.add(key);
+                }
+            }
+
+            if (i > 1) {
+                String key = tokens.get(i - 2) + " " + tokens.get(i - 1) + " " + tokens.get(i);
+                if (!added.contains(key)) {
+                    addOneForKey(key, positive);
+                    added.add(key);
+                }
+            }
+        }
+        if (positive) numPosDocs++;
+        else numNegDocs++;
+    }
+
+    public void addOneForKey(String key, boolean positive) {
+        Integer count;
+        if (positive)
+            count = posFrequencies.get(key);
+        else
+            count = negFrequencies.get(key);
+
+        Integer newVal;
+        if (count == null) newVal = new Integer(1);
+        else newVal = new Integer(count.intValue() + 1);
+
+        if (positive)
+            posFrequencies.put(key, newVal);
+        else
+            negFrequencies.put(key, newVal);
+    }
+
+    public void printOccurrences() {
+        for (String key : posFrequencies.keySet()) {
+            System.out.println(key + ": " + posFrequencies.get(key));
+        }
+
+        System.out.println("\n" + numNegDocs);
+        System.out.println("\n" + numPosDocs);
     }
 }

@@ -1,15 +1,16 @@
 JC = javac
 JFLAGS=
 *.class:
-	$(JC) $(JFLAGS) src/*.java
+	$(JC) $(JFLAGS) ./*.java
 
 CLASSES = \
-	src/Main.java
+	./DecisionTreeClassifier.java
 
 default: classes
-	java src.Main training.txt testing.txt
 
-classes: $(CLASSES:.java=.class)
+classes: DecisionTreeClassifier.class
+
+DecisionTreeClassifier.class: DecisionTreeClassifier.java
 
 clean:
-	$(RM) src/*.class
+	$(RM) *.class
