@@ -17,6 +17,9 @@ public class DecisionTreeClassifier{
     static boolean NORMALIZE_WEIGHTS; // Indicates whether to normalize 0 vs. 1 probabilities
     static boolean STEM;
 
+    static String[] g_training;
+    static String[] g_testing;
+
     public static void main(String[] args) {
         setDefaults();
         String training;
@@ -37,70 +40,113 @@ public class DecisionTreeClassifier{
 
         String[] trainingData = training.split("\n");
         String[] testingData = testing.split("\n");
-        // String[] trainingData = testing.split("\n");
-        // String[] testingData = training.split("\n");
 
-        BayesModel model = new BayesModel();
-
-        for (int i = 0; i < trainingData.length; i++) {
-            model.addToModel(tokenize(trainingData[i].substring(1)), trainingData[i].charAt(0) == '1');
-        }
-
-        System.out.println("Finished constructing model.");
-
-        int numCorrect = 0;
-        int numWrong = 0;
-
-        for (int i = 0; i < testingData.length; i++) {
-            boolean res = model.classify(tokenize(testingData[i].substring(1)));
-            char resChar = res ? '1' : '0';
-            if(resChar == testingData[i].charAt(0))
-                numCorrect++;
-            else
-                numWrong++;
-        }
-
-        double percent = numCorrect / (double)(numCorrect + numWrong);
-        System.out.println("Correct: " + numCorrect);
-        System.out.println("Wrong: " + numWrong);
-        System.out.println("Percentage: " + Math.round(percent * 1000) / 10.0);
-
-        if (true) return;
-        int count = 0;
-        for (int man = 1; man <= 3; man++) {
-            MAX_ATT_NUM = man;
-            for (double al = 0.5; al <= 2; al += 0.1) {
-                ALPHA = al;
-                for (double ap = 0.25; ap <= 1; ap += 0.05) {
-                    ATT_PORTION = ap;
-                    for (double csw = 0.5; csw <= 2; csw += 0.1) {
-                        CAT_SKEW_WEIGHT = csw;
-                        for (double ow = -1.0; ow <= 1.0; ow += 0.2) {
-                            OCCUR_WEIGHT = ow;
-                            for (int nw = 0; nw <= 1; nw++) {
-                                NORMALIZE_WEIGHTS = (nw == 1);
-                                for (int s = 0; s <= 1; s++) {
-                                    STEM = (s == 1);
-
-
-
-
-
-                                }
-                                break;
-                            }
-                            break;
-                        }
-                        break;
-                    }
-                    break;
-                }
-                break;
+        double[][] totalPercents = new double[6][21];
+        for (int maxRatio = 0; maxRatio <= totalPercents.length - 1; maxRatio++) {
+            for (int minOccurrence = 0; minOccurrence <= totalPercents[0].length - 1; minOccurrence++) {
+                totalPercents[maxRatio][minOccurrence] = 0;
             }
-            break;
         }
 
-        System.out.println(count);
+        for (int trial = 0; trial < 2; trial++) {
+            reshuffle(trainingData, testingData);
+
+            BayesModel model = new BayesModel();
+
+            for (int i = 0; i < g_training.length; i++) {
+                model.addToModel(tokenize(g_training[i].substring(1)), g_training[i].charAt(0) == '1');
+            }
+
+            System.out.println("Finished constructing model.");
+
+            int optRatio = 0;
+            int optOccurrence = 0;
+            double optPercent = 0;
+
+            for (int maxRatio = 0; maxRatio <= totalPercents.length - 1; maxRatio++) {
+                for (int minOccurrence = 0; minOccurrence <= totalPercents[0].length - 1; minOccurrence++) {
+                    int numCorrect = 0;
+                    int numWrong = 0;
+
+                    for (int i = 0; i < g_testing.length; i++) {
+                        boolean res = model.classify(tokenize(g_testing[i].substring(1)), minOccurrence * 2, maxRatio * 0.1 + 0.5);
+                        char resChar = res ? '1' : '0';
+                        if (resChar == g_testing[i].charAt(0))
+                            numCorrect++;
+                        else
+                            numWrong++;
+                    }
+
+                    double percent = numCorrect / (double) (numCorrect + numWrong);
+
+                    if (percent >= optPercent) {
+                        optPercent = percent;
+                        optRatio = maxRatio;
+                        optOccurrence = minOccurrence;
+                    }
+
+                    /*
+                    System.out.println("maxRatio value: " + (maxRatio * 0.1 + 0.5));
+                    System.out.println("minOccurrence value: " + minOccurrence * 2);
+                    System.out.println("Correct: " + numCorrect);
+                    System.out.println("Wrong: " + numWrong);
+                    System.out.println("Percentage: " + Math.round(percent * 1000) / 10.0 + "\n");
+                    */
+
+                    totalPercents[maxRatio][minOccurrence] += percent;
+                }
+            }
+
+            System.out.println("Optimal ratio: " + (optRatio * 0.1 + 0.5));
+            System.out.println("Optimal occurrence: " + optOccurrence * 2);
+            System.out.println("Best percentage: " + optPercent + "\n");
+        }
+
+        int optRatio = 0;
+        int optOccurrence = 0;
+
+        for (int maxRatio = 0; maxRatio <= totalPercents.length - 1; maxRatio++) {
+            for (int minOccurrence = 0; minOccurrence <= totalPercents[0].length - 1; minOccurrence++) {
+                if(totalPercents[maxRatio][minOccurrence] > totalPercents[optRatio][optOccurrence]){
+                    optRatio = maxRatio;
+                    optOccurrence = optRatio;
+                }
+            }
+        }
+
+        System.out.println("optRatio: " + (optRatio * 0.1 + 0.5));
+        System.out.println("optOccurrence: " + optOccurrence * 2);
+        System.out.println("optPercent: " + totalPercents[optRatio][optOccurrence] / 2);
+    }
+
+    public static void reshuffle(String[] part1, String[] part2){
+        ArrayList<String> posOptions = new ArrayList<String>();
+        ArrayList<String> negOptions = new ArrayList<String>();
+
+        for(int i = 0; i < part1.length; i++) {
+            if (part1[i].charAt(0) == '1') posOptions.add(part1[i]);
+            else negOptions.add(part1[i]);
+        }
+        for(int i = 0; i < part2.length; i++) {
+            if (part2[i].charAt(0) == '1') posOptions.add(part2[i]);
+            else negOptions.add(part2[i]);
+        }
+
+        g_training = new String[2000];
+        g_testing = new String[500];
+
+        for(int i = 0; i < g_training.length / 2; i++){
+            int pos = (int)(Math.random() * posOptions.size());
+            g_training[i] = posOptions.remove(pos);
+
+            pos = (int)(Math.random() * posOptions.size());
+            g_training[(g_training.length / 2) + i] = negOptions.remove(pos);
+        }
+
+        for(int i = 0; i < g_testing.length / 2; i++){
+            g_testing[i] = posOptions.get(i);
+            g_testing[(g_testing.length / 2) + i] = negOptions.get(i);
+        }
     }
 
     public static ArrayList<String> tokenize(String post) {
@@ -149,30 +195,57 @@ class BayesModel {
         numPosDocs = 0;
     }
 
-    public boolean classify(ArrayList<String> tokens) {
+    public boolean classify(ArrayList<String> tokens, int minOccurrence, double maxRatio) {
         double posValue = 0.0;
         double negValue = 0.0;
 
         for (int i = 0; i < tokens.size(); i++) {
             String key = tokens.get(i);
-            if (posFrequencies.containsKey(key) || negFrequencies.containsKey(key)) {
-                posValue += bayesValueFor(key, true);
-                negValue += bayesValueFor(key, false);
-            }
+            boolean posContains = posFrequencies.containsKey(key);
+            boolean negContains = negFrequencies.containsKey(key);
 
-            if (i > 0) {
-                key = tokens.get(i - 1) + " " + tokens.get(i);
-                if (posFrequencies.containsKey(key) || negFrequencies.containsKey(key)) {
+            if ((posContains || negContains)) {
+                int totalOccurrence = (posContains ? posFrequencies.get(key).intValue() : 0) +
+                        (negContains ? negFrequencies.get(key).intValue() : 0);
+                double ratio = (double)Math.min((posContains ? posFrequencies.get(key).intValue() : 0), (negContains ? negFrequencies.get(key).intValue() : 0)) /
+                        Math.max((posContains ? posFrequencies.get(key).intValue() : 0), (negContains ? negFrequencies.get(key).intValue() : 0));
+                if(totalOccurrence >= minOccurrence && ratio <= maxRatio) {
                     posValue += bayesValueFor(key, true);
                     negValue += bayesValueFor(key, false);
                 }
             }
 
+            if (i > 0) {
+                key = tokens.get(i - 1) + " " + tokens.get(i);
+                posContains = posFrequencies.containsKey(key);
+                negContains = negFrequencies.containsKey(key);
+
+                if (posContains || negContains) {
+                    int totalOccurrence = (posContains ? posFrequencies.get(key).intValue() : 0) +
+                            (negContains ? negFrequencies.get(key).intValue() : 0);
+                    double ratio = Math.min((posContains ? posFrequencies.get(key).intValue() : 0), (negContains ? negFrequencies.get(key).intValue() : 0)) /
+                            Math.max((posContains ? posFrequencies.get(key).intValue() : 0), (negContains ? negFrequencies.get(key).intValue() : 0));
+                    if(totalOccurrence >= minOccurrence && ratio <= maxRatio) {
+                        posValue += bayesValueFor(key, true);
+                        negValue += bayesValueFor(key, false);
+                    }
+                }
+            }
+
             if (i > 1) {
                 key = tokens.get(i - 2) + " " + tokens.get(i - 1) + " " + tokens.get(i);
-                if (posFrequencies.containsKey(key) || negFrequencies.containsKey(key)) {
-                    posValue += bayesValueFor(key, true);
-                    negValue += bayesValueFor(key, false);
+                posContains = posFrequencies.containsKey(key);
+                negContains = negFrequencies.containsKey(key);
+
+                if (posContains || negContains) {
+                    int totalOccurrence = (posContains ? posFrequencies.get(key).intValue() : 0) +
+                            (negContains ? negFrequencies.get(key).intValue() : 0);
+                    double ratio = Math.min((posContains ? posFrequencies.get(key).intValue() : 0), (negContains ? negFrequencies.get(key).intValue() : 0)) /
+                            Math.max((posContains ? posFrequencies.get(key).intValue() : 0), (negContains ? negFrequencies.get(key).intValue() : 0));
+                    if(totalOccurrence >= minOccurrence && ratio <= maxRatio) {
+                        posValue += bayesValueFor(key, true);
+                        negValue += bayesValueFor(key, false);
+                    }
                 }
             }
         }
