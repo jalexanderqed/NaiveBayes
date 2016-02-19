@@ -20,10 +20,21 @@ public class DecisionTreeClassifier{
     static String[] g_training;
     static String[] g_testing;
 
+    static String[] sw =
+            {"I","a","about","an","are","as","at","be","by",
+                    "for","from","how","in","is","it","of",
+                    "on","or","that","the","this","to","was",
+                    "what","when","where","who","will","with","the"};
+    static HashSet<String> stopwords;
+
     public static void main(String[] args) {
-        setDefaults();
         String training;
         String testing;
+
+        stopwords = new HashSet<String>();
+        for(int i = 0; i < sw.length; i++){
+            stopwords.add(sw[i]);
+        }
 
         try {
             training = new String(Files.readAllBytes(Paths.get(".", args[0])));
@@ -48,7 +59,7 @@ public class DecisionTreeClassifier{
             }
         }
 
-        for (int trial = 0; trial < 2; trial++) {
+        for (int trial = 0; trial < 5; trial++) {
             reshuffle(trainingData, testingData);
 
             BayesModel model = new BayesModel();
@@ -116,7 +127,7 @@ public class DecisionTreeClassifier{
 
         System.out.println("optRatio: " + (optRatio * 0.1 + 0.5));
         System.out.println("optOccurrence: " + optOccurrence * 2);
-        System.out.println("optPercent: " + totalPercents[optRatio][optOccurrence] / 2);
+        System.out.println("optPercent: " + totalPercents[optRatio][optOccurrence] / 5);
     }
 
     public static void reshuffle(String[] part1, String[] part2){
@@ -162,6 +173,8 @@ public class DecisionTreeClassifier{
                 tokens[i] = tokens[i].substring(0, tokens[i].length() - 1);
             if(tokens[i].length() == 1 && (tokens[i].charAt(0) < 'a' || tokens[i].charAt(0) > 'z'))
                 tokens[i] = new String();
+            if(stopwords.contains(tokens[i]))
+                tokens[i] = new String();
 
             tokens[i] = tokens[i].trim();
             if (tokens[i].length() != 0){
@@ -170,16 +183,6 @@ public class DecisionTreeClassifier{
         }
 
         return finalTokens;
-    }
-
-    public static void setDefaults() {
-        MAX_ATT_NUM = 3;
-        ALPHA = 0.5;
-        ATT_PORTION = 0.75;
-        CAT_SKEW_WEIGHT = 0.25;
-        OCCUR_WEIGHT = 1;
-        NORMALIZE_WEIGHTS = true;
-        STEM = true;
     }
 }
 
