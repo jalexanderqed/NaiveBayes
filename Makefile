@@ -4,13 +4,15 @@ JFLAGS=
 	$(JC) $(JFLAGS) ./*.java
 
 CLASSES = \
-	./DecisionTreeClassifier.java
+	./NaiveBayesClassifier.java
 
 default: classes
 
-classes: DecisionTreeClassifier.class
+classes: NaiveBayesClassifier.class
 
-DecisionTreeClassifier.class: DecisionTreeClassifier.java
+DecisionTreeClassifier.class: NaiveBayesClassifier.java
+
+BayesModel.class: NaiveBayesClassifier.java
 
 clean:
 	$(RM) *.class

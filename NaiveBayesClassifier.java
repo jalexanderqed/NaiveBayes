@@ -7,24 +7,17 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Hashtable;
 
-public class DecisionTreeClassifier {
-
-    static int MAX_ATT_NUM; // 1 to 3
-    static double ALPHA; // 0.5 to 2 CONSIDER
-    static double ATT_PORTION; // 0.25 to 1
-    static double CAT_SKEW_WEIGHT; // 0.5 to 2
-    static double OCCUR_WEIGHT; // -1 to 1
-    static boolean NORMALIZE_WEIGHTS; // Indicates whether to normalize 0 vs. 1 probabilities
-    static boolean STEM;
-
+public class NaiveBayesClassifier {
     static String[] sw =
-            {"I", "a", "about", "an", "are", "as", "at", "be", "by",
+            {"i", "a", "about", "an", "are", "as", "at", "be", "by",
                     "for", "from", "how", "in", "is", "it", "of",
                     "on", "or", "that", "the", "this", "to", "was",
                     "what", "when", "where", "who", "will", "with", "the"};
     static HashSet<String> stopwords;
 
     public static void main(String[] args) {
+        long startTime = System.currentTimeMillis();
+
         String training;
         String testing;
 
@@ -55,8 +48,10 @@ public class DecisionTreeClassifier {
             model.addToModel(tokenize(trainingData[i].substring(1)), trainingData[i].charAt(0) == '1');
         }
 
+        long trainTime = System.currentTimeMillis() - startTime;
+
         double maxRatio = 1.0;
-        int minOccurrences = 10;
+        int minOccurrences = 3;
 
         int numCorrect = 0;
         int numWrong = 0;
@@ -71,6 +66,10 @@ public class DecisionTreeClassifier {
         }
         double trainPercent = numCorrect / (double) (numCorrect + numWrong);
 
+        startTime = System.currentTimeMillis();
+
+        numCorrect = 0;
+        numWrong = 0;
         for (int i = 0; i < testingData.length; i++) {
             boolean res = model.classify(tokenize(testingData[i].substring(1)), minOccurrences, maxRatio);
             char resChar = res ? '1' : '0';
@@ -81,9 +80,12 @@ public class DecisionTreeClassifier {
                 numWrong++;
         }
         double testPercent = numCorrect / (double) (numCorrect + numWrong);
+        long testTime = System.currentTimeMillis() - startTime;
 
+        System.out.println(Math.round((double) trainTime / 1000) + " seconds (training)");
+        System.out.println(Math.round((double) testTime / 1000) + " seconds (labeling)");
         System.out.println(trainPercent + " (training)");
-        System.out.println(testPercent + " (labeling)");
+        System.out.println(testPercent + " (testing)");
     }
 
     public static ArrayList<String> tokenize(String post) {
@@ -95,7 +97,8 @@ public class DecisionTreeClassifier {
 
             while (tokens[i].length() > 1 && (tokens[i].charAt(0) < 'a' || tokens[i].charAt(0) > 'z'))
                 tokens[i] = tokens[i].substring(1);
-            while (tokens[i].length() > 1 && (tokens[i].charAt(tokens[i].length() - 1) < 'a' || tokens[i].charAt(tokens[i].length() - 1) > 'z'))
+            while (tokens[i].length() > 1 && (tokens[i].charAt(tokens[i].length() - 1) < 'a'
+                    || tokens[i].charAt(tokens[i].length() - 1) > 'z'))
                 tokens[i] = tokens[i].substring(0, tokens[i].length() - 1);
             if (tokens[i].length() == 1 && (tokens[i].charAt(0) < 'a' || tokens[i].charAt(0) > 'z'))
                 tokens[i] = new String();
@@ -113,8 +116,8 @@ public class DecisionTreeClassifier {
 }
 
 class BayesModel {
-    private Hashtable<String, Integer> posFrequencies;
-    private Hashtable<String, Integer> negFrequencies;
+    public Hashtable<String, Integer> posFrequencies;
+    public Hashtable<String, Integer> negFrequencies;
     private int numPosDocs;
     private int numNegDocs;
 
@@ -185,7 +188,7 @@ class BayesModel {
         return posValue > negValue;
     }
 
-    public double bayesValueFor(String key, boolean positive) {
+    private double bayesValueFor(String key, boolean positive) {
         Hashtable<String, Integer> source;
         int numDocs;
 
@@ -234,7 +237,7 @@ class BayesModel {
         else numNegDocs++;
     }
 
-    public void addOneForKey(String key, boolean positive) {
+    private void addOneForKey(String key, boolean positive) {
         Integer count;
         if (positive)
             count = posFrequencies.get(key);
